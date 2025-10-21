@@ -2,6 +2,14 @@
 library(usethis)
 proj_set(".", force = TRUE)
 
+gitcreds::gitcreds_delete("https://github.com")
+
+# Create a new token in your browser
+usethis::create_github_token()     # copy the token shown at the end
+
+# Paste the token when prompted:
+gitcreds::gitcreds_set()
+
 # (One-time global identity; safe to run again)
 use_git_config(user.name = "JackAuty", user.email = "jack.auty@utas.edu.au")
 
@@ -18,3 +26,5 @@ proj_set(".", force = TRUE)
 
 # Create `JackAuty/OmicAdjust` on GitHub and push the current branch
 use_github(private = FALSE)
+
+usethis::use_readme_rmd(open = TRUE)

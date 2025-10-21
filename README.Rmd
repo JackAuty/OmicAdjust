@@ -1,54 +1,77 @@
 ---
-output: github_document
+output:
+  github_document: default
 ---
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/README-",
-  out.width = "100%"
-)
-```
 
 # OmicAdjust
 
-<!-- badges: start -->
-<!-- badges: end -->
+OmicAdjust provides a **pragmatic p‑value redistribution** for exploratory omics.  
+You run your standard test to get **unadjusted** p‑values, then pass them to `OmicAdjust()` and use the returned `p_rescaled` for **plots and triage**.
 
-The goal of OmicAdjust is to ...
+
 
 ## Installation
 
-You can install the development version of OmicAdjust like so:
-
-``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
-```
-
-## Example
-
-This is a basic example which shows you how to solve a common problem:
-
-```{r example}
+```r
+# install.packages("remotes")  # if needed
+remotes::install_github("JackAuty/OmicAdjust")
 library(OmicAdjust)
-## basic example code
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+## Typical workflow
 
-```{r cars}
-summary(cars)
+1. **Compute unadjusted p‑values** with your usual method (e.g., per‑gene t‑test, limma, DESeq2, edgeR). Use the **raw p‑values** column.
+2. **Rescale** with OmicAdjust and keep `p_rescaled`.
+3. **Plot** histograms with **20 breaks** so the first bar spans 0–0.05 (the “significance bar”).
+
+```r
+# Example: per‑gene t‑test to create unadjusted p‑values
+set.seed(1)
+expr <- matrix(rnorm(1000 * 6), nrow = 1000)           # 1000 genes x 6 samples
+grp  <- factor(rep(c("A","B"), each = 3))
+p    <- apply(expr, 1, function(y) t.test(y ~ grp)$p.value)
+
+# Rescale (alpha defaults to 0.05)
+out <- OmicAdjust(p, alpha = 0.05)
+
+# Just the rescaled values
+p_adj <- out$p_rescaled
+
+# If your p‑values live in a data.frame:
+# df$p_OmicAdjust <- OmicAdjust(df$unadjustedPvalues)$p_rescaled
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this.
+### Visual check
 
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
+```r
+op <- par(mfrow = c(1,2))
+hist(p,     breaks = 20, main = "Raw p‑values",            xlab = "p")
+hist(p_adj, breaks = 20, main = "OmicAdjust (rescaled)",   xlab = "rescaled p")
+par(op)
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
+### Choosing `alpha`
+
+- Default is **0.05**.  
+- In **enrichment** settings (where many genes are “significant”), a smaller `alpha` (e.g., **0.01**) can prevent high significant gene numbers from obscuring low‑frequency pathways.
+
+## What OmicAdjust does (brief)
+
+At a chosen `alpha`, it computes the null expectation (`expected = n * alpha`) with standard deviation `sqrt(n * alpha * (1 - alpha))` and a 95% upper bound on false positives. It counts observed `p < alpha`, then **redistributes**: the `excess` smallest p‑values go into `[0, alpha]`, the rest into `[alpha, 1]`. A monotone tweak ensures rescaled values are never smaller than the original sorted p‑values.
+
+## Output structure
+
+```r
+str(out)
+# $ p_rescaled: num [1:1000] ...
+# $ expected  : num
+# $ sd        : num
+# $ upper     : num
+# $ observed  : int
+# $ excess    : int
+```
+
+## Citation
+
+If you use OmicAdjust in a manuscript, please cite the package repository:
+> Rivers‑Auty J. **OmicAdjust**: pragmatic p‑value redistribution for exploratory omics. GitHub: JackAuty/OmicAdjust.
